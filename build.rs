@@ -25,14 +25,27 @@ fn main() {
     let go_toolchain =
         env::var("NETBIRD_GO_TOOLCHAIN").unwrap_or_else(|_| "go1.25.5".to_string());
 
+    // Android needs -checklinkname=0 because wlynxg/anet uses go:linkname
+    // to access net.zoneCache, which Go 1.25 rejects by default.
+    let ldflags = if goos == "android" {
+        "-checklinkname=0"
+    } else {
+        ""
+    };
+
     let mut cmd = Command::new("go");
     cmd.current_dir(&go_lib_dir)
         .env("GOTOOLCHAIN", &go_toolchain)
         .env("CGO_ENABLED", "1")
         .env("GOOS", &goos)
         .env("GOARCH", &goarch)
-        .arg("build")
-        .arg(format!("-buildmode={build_mode}"))
+        .arg("build");
+
+    if !ldflags.is_empty() {
+        cmd.arg(format!("-ldflags={ldflags}"));
+    }
+
+    cmd.arg(format!("-buildmode={build_mode}"))
         .arg("-o")
         .arg(out_dir.join(&lib_file))
         .arg(".");
